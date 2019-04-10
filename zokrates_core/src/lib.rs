@@ -23,7 +23,6 @@ extern crate zkstandard;
 //extern crate core;
 
 mod flatten;
-mod zkinterface_builder;
 mod helpers;
 mod imports;
 mod optimizer;
