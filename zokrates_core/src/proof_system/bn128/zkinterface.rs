@@ -5,15 +5,17 @@ use flat_absy::flat_variable::FlatVariable;
 use proof_system::ProofSystem;
 use std::fs::File;
 use std::io::{BufReader, Write};
-use zkstandard::{
+use zkinterface::{
     flatbuffers::{FlatBufferBuilder, WIPOffset},
     zkinterface_generated::zkinterface::{
         AssignedVariables,
         AssignedVariablesArgs,
         BilinearConstraint,
-        BilinearConstraintArgs, GadgetReturn,
-        GadgetReturnArgs,
-        Message,
+        BilinearConstraintArgs,
+        GadgetReturn,
+        GadgetReturnArgs, Message,
+        R1CSConstraints,
+        R1CSConstraintsArgs,
         Root,
         RootArgs,
         VariableValues,
@@ -96,7 +98,7 @@ fn write_r1cs(
     c: &Vec<Vec<(usize, FieldPrime)>>,
     to_path: &str,
 ) {
-    let mut builder = zkstandard::flatbuffers::FlatBufferBuilder::new();
+    let mut builder = FlatBufferBuilder::new();
 
     // create vector of
     let mut vector_lc = vec![];
@@ -116,11 +118,11 @@ fn write_r1cs(
 
     let vector_offset = builder.create_vector(vector_lc.as_slice());
 
-    let args = zkstandard::zkinterface_generated::zkinterface::R1CSConstraintsArgs { constraints: Some(vector_offset) };
+    let args = R1CSConstraintsArgs { constraints: Some(vector_offset) };
 
-    let r1cs_constraints = zkstandard::zkinterface_generated::zkinterface::R1CSConstraints::create(&mut builder, &args);
-    let root_args = zkstandard::zkinterface_generated::zkinterface::RootArgs { message_type: zkstandard::zkinterface_generated::zkinterface::Message::R1CSConstraints, message: Some(r1cs_constraints.as_union_value()) };
-    let root = zkstandard::zkinterface_generated::zkinterface::Root::create(&mut builder, &root_args);
+    let r1cs_constraints = R1CSConstraints::create(&mut builder, &args);
+    let root_args = RootArgs { message_type: Message::R1CSConstraints, message: Some(r1cs_constraints.as_union_value()) };
+    let root = Root::create(&mut builder, &root_args);
 
     builder.finish_size_prefixed(root, None);
 
