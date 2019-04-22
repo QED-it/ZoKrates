@@ -7,13 +7,13 @@ use std::fs::File;
 use std::io::{BufReader, Write};
 use zkinterface::{
     flatbuffers::{FlatBufferBuilder, WIPOffset},
+    writing::GadgetReturnSimple,
     zkinterface_generated::zkinterface::{
         AssignedVariables,
         AssignedVariablesArgs,
         BilinearConstraint,
         BilinearConstraintArgs,
-        GadgetReturn,
-        GadgetReturnArgs, Message,
+        Message,
         R1CSConstraints,
         R1CSConstraintsArgs,
         Root,
@@ -23,6 +23,7 @@ use zkinterface::{
     },
 };
 use zokrates_field::field::{Field, FieldPrime};
+use zkinterface::writing::ConnectionSimple;
 
 pub struct ZkInterface {}
 
@@ -39,20 +40,25 @@ impl ProofSystem for ZkInterface {
         a: Vec<Vec<(usize, FieldPrime)>>,
         b: Vec<Vec<(usize, FieldPrime)>>,
         c: Vec<Vec<(usize, FieldPrime)>>,
-        num_inputs: usize,
+        num_public_inputs: usize,
         pk_path: &str,
         _vk_path: &str,
     ) -> bool {
-        let n_outputs = 1;
-        let _n_inputs = num_inputs - n_outputs;
+        let num_inputs = 2;
+        let first_output_id = 1 + num_inputs;
+        let first_local_id = 1 + num_public_inputs as u64;
         let free_variable_id_after = variables.len() as u64;
-        let n_constraints = a.len();
 
         // Write R1CSConstraints message.
-        write_r1cs(n_constraints, &a, &b, &c, pk_path);
+        write_r1cs(&a, &b, &c, pk_path);
 
         // Write Return message including free_variable_id_after.
-        write_return(free_variable_id_after, None, &format!("return_{}", pk_path));
+        write_return(
+            first_output_id,
+            first_local_id,
+            free_variable_id_after,
+            None,
+            &format!("return_{}", pk_path));
 
         true
     }
@@ -64,19 +70,24 @@ impl ProofSystem for ZkInterface {
         public_inputs: Vec<FieldPrime>,
         local_values: Vec<FieldPrime>,
     ) -> bool {
-        let n_outputs = 1;
-        let n_inputs = public_inputs.len() - n_outputs;
-        let free_variable_id_before = public_inputs.len() as u64;
-        let free_variable_id_after = (public_inputs.len() + local_values.len()) as u64;
+        let num_inputs = 2;
+        let first_output_id = 1 + num_inputs;
+        let first_local_id = public_inputs.len() as u64;
+        let free_variable_id_after = first_local_id + local_values.len() as u64;
 
         println!("{:?}", public_inputs);
 
         // Write assignment to local variables.
-        write_assignment(free_variable_id_before, &local_values, proof_path);
+        write_assignment(first_local_id as u64, &local_values, proof_path);
 
         // Write Return message including output values.
-        let outputs = &public_inputs[n_inputs..];
-        write_return(free_variable_id_after, Some(outputs), &format!("return_{}", proof_path));
+        let outputs = &public_inputs[first_output_id as usize..];
+        write_return(
+            first_output_id,
+            first_local_id,
+            free_variable_id_after,
+            Some(outputs),
+            &format!("return_{}", proof_path));
 
         true
     }
@@ -92,7 +103,6 @@ impl ProofSystem for ZkInterface {
 
 
 fn write_r1cs(
-    num_constraints: usize,
     a: &Vec<Vec<(usize, FieldPrime)>>,
     b: &Vec<Vec<(usize, FieldPrime)>>,
     c: &Vec<Vec<(usize, FieldPrime)>>,
@@ -103,7 +113,7 @@ fn write_r1cs(
     // create vector of
     let mut vector_lc = vec![];
 
-    for i in 0..num_constraints {
+    for i in 0..a.len() {
         let a_var_val = convert_linear_combination(&mut builder, &a[i]);
         let b_var_val = convert_linear_combination(&mut builder, &b[i]);
         let c_var_val = convert_linear_combination(&mut builder, &c[i]);
@@ -132,47 +142,47 @@ fn write_r1cs(
 }
 
 fn convert_linear_combination<'a>(builder: &mut FlatBufferBuilder<'a>, item: &Vec<(usize, FieldPrime)>) -> (WIPOffset<VariableValues<'a>>) {
-    let mut var_ids: Vec<u64> = Vec::new();
-    let mut elements: Vec<u8> = Vec::new();
+    let mut variable_ids: Vec<u64> = Vec::new();
+    let mut values: Vec<u8> = Vec::new();
 
     for i in 0..item.len() {
-        var_ids.push(item[i].0 as u64);
+        variable_ids.push(item[i].0 as u64);
 
-        let mut bytes = item[i].1.into_byte_vector().clone();
-        elements.append(&mut bytes);
+        let mut bytes = item[i].1.into_byte_vector();
+        values.append(&mut bytes);
     }
 
-    let var_ids_vector = builder.create_vector(&var_ids);
-    let elements_vector = builder.create_vector(&elements);
-
+    let variable_ids = Some(builder.create_vector(&variable_ids));
+    let values = Some(builder.create_vector(&values));
     VariableValues::create(builder, &VariableValuesArgs {
-        variable_ids: Some(var_ids_vector),
-        elements: Some(elements_vector),
+        variable_ids,
+        values,
     })
 }
 
 
 fn write_assignment(
-    free_variable_id_before: u64,
+    first_local_id: u64,
     local_values: &[FieldPrime],
     to_path: &str,
 ) {
     let mut builder = &mut FlatBufferBuilder::new();
 
     let mut ids = vec![];
-    let mut elements = vec![];
+    let mut values = vec![];
+
     for i in 0..local_values.len() {
-        ids.push(free_variable_id_before + i as u64);
+        ids.push(first_local_id + i as u64);
 
         let mut bytes = local_values[i].into_byte_vector();
-        elements.append(&mut bytes);
+        values.append(&mut bytes);
     }
 
-    let elements = builder.create_vector(&elements);
     let ids = builder.create_vector(&ids);
+    let values = builder.create_vector(&values);
     let values = VariableValues::create(&mut builder, &VariableValuesArgs {
         variable_ids: Some(ids),
-        elements: Some(elements),
+        values: Some(values),
     });
     let assign = AssignedVariables::create(&mut builder, &AssignedVariablesArgs {
         values: Some(values),
@@ -190,34 +200,34 @@ fn write_assignment(
 
 
 fn write_return(
-    free_variable_id_after: u64,
+    first_output_id: u64,
+    first_local_id: u64,
+    free_variable_id: u64,
     outputs: Option<&[FieldPrime]>,
     to_path: &str,
 ) {
-    let mut builder = &mut FlatBufferBuilder::new();
-
-    let outgoing_elements = if let Some(outputs) = outputs {
-        // Convert output element representations.
-        let mut elements = vec![];
-        for o in outputs {
-            let mut bytes = o.into_byte_vector();
-            elements.append(&mut bytes);
+    // Convert output element representations.
+    let values = outputs.map(|outputs| {
+        let mut values = vec![];
+        for output in outputs {
+            let mut bytes = output.into_byte_vector();
+            values.append(&mut bytes);
         }
-        Some(builder.create_vector(&elements))
-    } else {
-        None
+        values
+    });
+
+    let connection = ConnectionSimple {
+        free_variable_id,
+        variable_ids: (first_output_id..first_local_id).collect(),
+        values,
     };
 
-    let gadret = GadgetReturn::create(&mut builder, &GadgetReturnArgs {
-        free_variable_id_after,
-        outgoing_elements,
-        info: None,
-        error: None,
-    });
-    let message = Root::create(&mut builder, &RootArgs {
-        message_type: Message::GadgetReturn,
-        message: Some(gadret.as_union_value()),
-    });
+    let gadget_return = GadgetReturnSimple {
+        outputs: connection,
+    };
+
+    let builder = &mut FlatBufferBuilder::new();
+    let message = gadget_return.build(builder);
     builder.finish_size_prefixed(message, None);
 
     println!("Writing {}", to_path);
