@@ -7,7 +7,7 @@ use std::fs::File;
 use std::io::{BufReader, Write};
 use zkinterface::{
     flatbuffers::{FlatBufferBuilder, WIPOffset},
-    writing::GadgetReturnSimple,
+    writing::{GadgetCallSimple, ConnectionSimple},
     zkinterface_generated::zkinterface::{
         AssignedVariables,
         AssignedVariablesArgs,
@@ -22,7 +22,6 @@ use zkinterface::{
         VariableValuesArgs,
     },
 };
-use zkinterface::writing::ConnectionSimple;
 use zokrates_field::field::{Field, FieldPrime};
 
 pub struct ZkInterface {}
@@ -55,6 +54,7 @@ impl ProofSystem for ZkInterface {
             first_local_id,
             free_variable_id,
             None,
+            true,
             &format!("return_{}", pk_path));
 
         true
@@ -80,6 +80,7 @@ impl ProofSystem for ZkInterface {
             first_local_id,
             free_variable_id,
             Some(&public_inputs),
+            false,
             &format!("return_{}", proof_path));
 
         true
@@ -196,6 +197,7 @@ fn write_return(
     first_local_id: u64,
     free_variable_id: u64,
     public_inputs: Option<&[FieldPrime]>,
+    generate_r1cs: bool,
     to_path: &str,
 ) {
     // Convert element representations.
@@ -215,8 +217,10 @@ fn write_return(
         values,
     };
 
-    let gadget_return = GadgetReturnSimple {
-        outputs: connection,
+    let gadget_return = GadgetCallSimple {
+        inputs: connection,
+        generate_r1cs,
+        field_order: None,
     };
 
     let builder = &mut FlatBufferBuilder::new();
