@@ -22,8 +22,8 @@ use zkinterface::{
         VariableValuesArgs,
     },
 };
-use zokrates_field::field::{Field, FieldPrime};
 use zkinterface::writing::ConnectionSimple;
+use zokrates_field::field::{Field, FieldPrime};
 
 pub struct ZkInterface {}
 
@@ -44,19 +44,16 @@ impl ProofSystem for ZkInterface {
         pk_path: &str,
         _vk_path: &str,
     ) -> bool {
-        let num_inputs = 2;
-        let first_output_id = 1 + num_inputs;
         let first_local_id = 1 + num_public_inputs as u64;
-        let free_variable_id_after = variables.len() as u64;
+        let free_variable_id = variables.len() as u64;
 
         // Write R1CSConstraints message.
         write_r1cs(&a, &b, &c, pk_path);
 
-        // Write Return message including free_variable_id_after.
+        // Write Return message including free_variable_id.
         write_return(
-            first_output_id,
             first_local_id,
-            free_variable_id_after,
+            free_variable_id,
             None,
             &format!("return_{}", pk_path));
 
@@ -70,10 +67,8 @@ impl ProofSystem for ZkInterface {
         public_inputs: Vec<FieldPrime>,
         local_values: Vec<FieldPrime>,
     ) -> bool {
-        let num_inputs = 2;
-        let first_output_id = 1 + num_inputs;
         let first_local_id = public_inputs.len() as u64;
-        let free_variable_id_after = first_local_id + local_values.len() as u64;
+        let free_variable_id = first_local_id + local_values.len() as u64;
 
         println!("{:?}", public_inputs);
 
@@ -81,12 +76,10 @@ impl ProofSystem for ZkInterface {
         write_assignment(first_local_id as u64, &local_values, proof_path);
 
         // Write Return message including output values.
-        let outputs = &public_inputs[first_output_id as usize..];
         write_return(
-            first_output_id,
             first_local_id,
-            free_variable_id_after,
-            Some(outputs),
+            free_variable_id,
+            Some(&public_inputs),
             &format!("return_{}", proof_path));
 
         true
@@ -200,17 +193,17 @@ fn write_assignment(
 
 
 fn write_return(
-    first_output_id: u64,
     first_local_id: u64,
     free_variable_id: u64,
-    outputs: Option<&[FieldPrime]>,
+    public_inputs: Option<&[FieldPrime]>,
     to_path: &str,
 ) {
-    // Convert output element representations.
-    let values = outputs.map(|outputs| {
+    // Convert element representations.
+    let values = public_inputs.map(|public_inputs| {
+        assert_eq!(public_inputs.len() as u64, first_local_id);
         let mut values = vec![];
-        for output in outputs {
-            let mut bytes = output.into_byte_vector();
+        for value in public_inputs {
+            let mut bytes = value.into_byte_vector();
             values.append(&mut bytes);
         }
         values
@@ -218,7 +211,7 @@ fn write_return(
 
     let connection = ConnectionSimple {
         free_variable_id,
-        variable_ids: (first_output_id..first_local_id).collect(),
+        variable_ids: (0..first_local_id).collect(),
         values,
     };
 
