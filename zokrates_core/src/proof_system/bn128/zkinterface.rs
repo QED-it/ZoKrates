@@ -7,7 +7,7 @@ use std::fs::File;
 use std::io::{BufReader, Write};
 use zkinterface::{
     flatbuffers::{FlatBufferBuilder, WIPOffset},
-    writing::{GadgetCallSimple, ConnectionSimple},
+    writing::{CircuitSimple, ConnectionSimple},
     zkinterface_generated::zkinterface::{
         AssignedVariables,
         AssignedVariablesArgs,
@@ -50,12 +50,12 @@ impl ProofSystem for ZkInterface {
         write_r1cs(&a, &b, &c, pk_path);
 
         // Write Return message including free_variable_id.
-        write_return(
+        write_ciruit(
             first_local_id,
             free_variable_id,
             None,
             true,
-            &format!("return_{}", pk_path));
+            &format!("circuit_{}", pk_path));
 
         true
     }
@@ -76,12 +76,12 @@ impl ProofSystem for ZkInterface {
         write_assignment(first_local_id as u64, &local_values, proof_path);
 
         // Write Return message including output values.
-        write_return(
+        write_ciruit(
             first_local_id,
             free_variable_id,
             Some(&public_inputs),
             false,
-            &format!("return_{}", proof_path));
+            &format!("circuit_{}", proof_path));
 
         true
     }
@@ -193,11 +193,11 @@ fn write_assignment(
 }
 
 
-fn write_return(
+fn write_ciruit(
     first_local_id: u64,
     free_variable_id: u64,
     public_inputs: Option<&[FieldPrime]>,
-    generate_r1cs: bool,
+    r1cs_generation: bool,
     to_path: &str,
 ) {
     // Convert element representations.
@@ -217,9 +217,9 @@ fn write_return(
         values,
     };
 
-    let gadget_return = GadgetCallSimple {
-        inputs: connection,
-        generate_r1cs,
+    let gadget_return = CircuitSimple {
+        connection,
+        r1cs_generation,
         field_order: None,
     };
 
