@@ -9,8 +9,6 @@ use zkinterface::{
     flatbuffers::{FlatBufferBuilder, WIPOffset},
     writing::{CircuitSimple, ConnectionsSimple},
     zkinterface_generated::zkinterface::{
-        AssignedVariables,
-        AssignedVariablesArgs,
         BilinearConstraint,
         BilinearConstraintArgs,
         Message,
@@ -20,6 +18,8 @@ use zkinterface::{
         RootArgs,
         VariableValues,
         VariableValuesArgs,
+        Witness,
+        WitnessArgs,
     },
 };
 use zokrates_field::field::{Field, FieldPrime};
@@ -178,11 +178,11 @@ fn write_assignment(
         variable_ids: Some(ids),
         values: Some(values),
     });
-    let assign = AssignedVariables::create(&mut builder, &AssignedVariablesArgs {
+    let assign = Witness::create(&mut builder, &WitnessArgs {
         values: Some(values),
     });
     let message = Root::create(&mut builder, &RootArgs {
-        message_type: Message::AssignedVariables,
+        message_type: Message::Witness,
         message: Some(assign.as_union_value()),
     });
     builder.finish_size_prefixed(message, None);
