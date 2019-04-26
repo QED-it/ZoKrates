@@ -7,7 +7,7 @@ use std::fs::File;
 use std::io::{BufReader, Write};
 use zkinterface::{
     flatbuffers::{FlatBufferBuilder, WIPOffset},
-    writing::{CircuitSimple, ConnectionSimple},
+    writing::{CircuitSimple, ConnectionsSimple},
     zkinterface_generated::zkinterface::{
         AssignedVariables,
         AssignedVariablesArgs,
@@ -211,14 +211,14 @@ fn write_ciruit(
         values
     });
 
-    let connection = ConnectionSimple {
+    let connections = ConnectionsSimple {
         free_variable_id,
         variable_ids: (0..first_local_id).collect(),
         values,
     };
 
     let gadget_return = CircuitSimple {
-        connection,
+        connections,
         r1cs_generation,
         field_order: None,
     };
