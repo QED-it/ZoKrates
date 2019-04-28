@@ -7,7 +7,7 @@ use std::fs::File;
 use std::io::{BufReader, Write};
 use zkinterface::{
     flatbuffers::{FlatBufferBuilder, WIPOffset},
-    writing::{CircuitOwned, ConnectionsOwned},
+    writing::{CircuitOwned, VariablesOwned},
     zkinterface_generated::zkinterface::{
         BilinearConstraint,
         BilinearConstraintArgs,
@@ -16,8 +16,8 @@ use zkinterface::{
         R1CSConstraintsArgs,
         Root,
         RootArgs,
-        VariableValues,
-        VariableValuesArgs,
+        Variables,
+        VariablesArgs,
         Witness,
         WitnessArgs,
     },
@@ -135,7 +135,7 @@ fn write_r1cs(
     file.write_all(builder.finished_data()).unwrap();
 }
 
-fn convert_linear_combination<'a>(builder: &mut FlatBufferBuilder<'a>, item: &Vec<(usize, FieldPrime)>) -> (WIPOffset<VariableValues<'a>>) {
+fn convert_linear_combination<'a>(builder: &mut FlatBufferBuilder<'a>, item: &Vec<(usize, FieldPrime)>) -> (WIPOffset<Variables<'a>>) {
     let mut variable_ids: Vec<u64> = Vec::new();
     let mut values: Vec<u8> = Vec::new();
 
@@ -148,9 +148,10 @@ fn convert_linear_combination<'a>(builder: &mut FlatBufferBuilder<'a>, item: &Ve
 
     let variable_ids = Some(builder.create_vector(&variable_ids));
     let values = Some(builder.create_vector(&values));
-    VariableValues::create(builder, &VariableValuesArgs {
+    Variables::create(builder, &VariablesArgs {
         variable_ids,
         values,
+        info: None,
     })
 }
 
@@ -174,9 +175,10 @@ fn write_assignment(
 
     let ids = builder.create_vector(&ids);
     let values = builder.create_vector(&values);
-    let values = VariableValues::create(&mut builder, &VariableValuesArgs {
+    let values = Variables::create(&mut builder, &VariablesArgs {
         variable_ids: Some(ids),
         values: Some(values),
+        info: None,
     });
     let assign = Witness::create(&mut builder, &WitnessArgs {
         values: Some(values),
@@ -211,14 +213,12 @@ fn write_ciruit(
         values
     });
 
-    let connections = ConnectionsOwned {
-        free_variable_id,
-        variable_ids: (0..first_local_id).collect(),
-        values,
-    };
-
     let gadget_return = CircuitOwned {
-        connections,
+        connections: VariablesOwned {
+            variable_ids: (0..first_local_id).collect(),
+            values,
+        },
+        free_variable_id,
         r1cs_generation,
         field_order: None,
     };
