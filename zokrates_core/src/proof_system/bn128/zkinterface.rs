@@ -122,7 +122,7 @@ fn write_r1cs(
 
     let vector_offset = builder.create_vector(vector_lc.as_slice());
 
-    let args = R1CSConstraintsArgs { constraints: Some(vector_offset) };
+    let args = R1CSConstraintsArgs { constraints: Some(vector_offset), info: None };
 
     let r1cs_constraints = R1CSConstraints::create(&mut builder, &args);
     let root_args = RootArgs { message_type: Message::R1CSConstraints, message: Some(r1cs_constraints.as_union_value()) };
@@ -181,7 +181,7 @@ fn write_assignment(
         info: None,
     });
     let assign = Witness::create(&mut builder, &WitnessArgs {
-        values: Some(values),
+        assigned_variables: Some(values),
     });
     let message = Root::create(&mut builder, &RootArgs {
         message_type: Message::Witness,
