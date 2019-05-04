@@ -223,11 +223,7 @@ fn write_ciruit(
         field_order: None,
     };
 
-    let builder = &mut FlatBufferBuilder::new();
-    let message = gadget_return.build(builder);
-    builder.finish_size_prefixed(message, None);
-
     println!("Writing {}", to_path);
     let mut file = File::create(to_path).unwrap();
-    file.write_all(builder.finished_data()).unwrap();
+    gadget_return.write(&mut file).unwrap();
 }
