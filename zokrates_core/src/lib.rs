@@ -20,7 +20,6 @@ extern crate serde_bytes;
 extern crate wasmi;
 extern crate zokrates_field;
 extern crate zkinterface;
-//extern crate core;
 
 mod flatten;
 mod helpers;
