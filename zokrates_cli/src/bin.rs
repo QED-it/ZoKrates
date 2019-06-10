@@ -94,7 +94,7 @@ fn cli() -> Result<(), String> {
         .arg(Arg::with_name("proving-scheme")
             .short("s")
             .long("proving-scheme")
-            .help("Proving scheme to use in the setup. Available options are G16 (default), PGHR13 and GM17")
+            .help("Proving scheme to use in the setup. Available options are G16 (default), PGHR13, GM17 and zkinterface")
             .value_name("FILE")
             .takes_value(true)
             .required(false)
@@ -123,7 +123,7 @@ fn cli() -> Result<(), String> {
         ).arg(Arg::with_name("proving-scheme")
             .short("s")
             .long("proving-scheme")
-            .help("Proving scheme to use to export the verifier. Available options are G16 (default), PGHR13 and GM17")
+            .help("Proving scheme to use to export the verifier. Available options are G16 (default), PGHR13, GM17 and zkinterface")
             .value_name("FILE")
             .takes_value(true)
             .required(false)
@@ -194,7 +194,7 @@ fn cli() -> Result<(), String> {
         ).arg(Arg::with_name("proving-scheme")
             .short("s")
             .long("proving-scheme")
-            .help("Proving scheme to use to generate the proof. Available options are G16 (default), PGHR13 and GM17")
+            .help("Proving scheme to use to generate the proof. Available options are G16 (default), PGHR13, GM17 and zkinterface")
             .value_name("FILE")
             .takes_value(true)
             .required(false)
@@ -439,6 +439,7 @@ fn get_scheme(scheme_str: &str) -> Result<&'static dyn ProofSystem, String> {
         #[cfg(feature = "libsnark")]
         "gm17" => Ok(&GM17 {}),
         "g16" => Ok(&G16 {}),
+        "zkinterface" => Ok(&ZkInterface {}),
         s => Err(format!("Backend \"{}\" not supported", s)),
     }
 }
